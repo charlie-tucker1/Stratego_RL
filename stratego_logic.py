@@ -775,10 +775,21 @@ class StrategoEnv(gym.Env):
     """
     Single-agent env: you play red, scripted bot plays blue.
 
+    Action Space: 3600 discrete actions
+    - Encodes: (position, direction, distance)
+    - position: 100 board cells (0-99)
+    - direction: 4 directions (up, down, left, right)
+    - distance: 9 distances (1-9 squares)
+    - Scouts can use full distance range, other pieces limited to distance 1
+
+    Reward Schema:
+    - Material: +/- piece rank when captured/lost
+    - Strategic: +2 for spy killing marshal, +1 for miner defusing bomb
+    - Territorial: +0.1 for moving deeper into enemy territory
+    - Terminal: +100 for winning, -100 for losing
+
     KNOWN LIMITATIONS:
-    - Scout multi-square moves are not encoded; scouts move 1 square like other pieces
     - Placement phase is auto-randomized (not part of action space)
-    - Rewards are sparse (only +1/-1 at game end)
     """
 
     metadata = {"render_modes": ["human", "ansi"]}
@@ -792,12 +803,27 @@ class StrategoEnv(gym.Env):
             low=0, high=1, shape=(27, 10, 10), dtype=np.float32
         )
 
-        # Action: 400 discrete actions (100 cells * 4 directions)
-        # We'll mask illegal actions
-        self.action_space = spaces.Discrete(400)
+        # Action: 3600 discrete actions (100 cells * 4 directions * 9 distances)
+        # Action encoding: action = position * 36 + direction * 9 + (distance - 1)
+        self.action_space = spaces.Discrete(3600)
 
         self.game = None
         self.bot = None
+
+        # Piece values for reward shaping
+        self.piece_values = {
+            0: 0,   # Flag/Bomb
+            1: 1,   # Spy
+            2: 2,   # Scout
+            3: 3,   # Miner
+            4: 4,   # Sergeant
+            5: 5,   # Lieutenant
+            6: 6,   # Captain
+            7: 7,   # Major
+            8: 8,   # Colonel
+            9: 9,   # General
+            10: 10  # Marshal
+        }
 
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
@@ -821,45 +847,154 @@ class StrategoEnv(gym.Env):
             obs = self.game.get_observation('red')
             return obs, -0.1, False, False, {"action_mask": self._get_action_mask()}
 
+        # Track state before move for reward calculation
+        from_r, from_c, to_r, to_c = move
+        red_captured_before = len(self.game.bsu.captured['red'])
+        blue_captured_before = len(self.game.bsu.captured['blue'])
+
+        # Get piece info for territorial reward
+        moving_piece = self.game.bsu.grid[from_r][from_c]
+
+        # Execute move
         self.game.do_move(*move)
+
+        # Calculate reward from red's move
+        reward = self._calculate_step_reward(
+            'red', from_r, to_r,
+            red_captured_before, blue_captured_before
+        )
 
         # Check if game ended after red's move
         if self.game.done:
             obs = self.game.get_observation('red')
-            reward = 1.0 if self.game.winner == 'red' else -1.0
-            return obs, reward, True, False, {}
+            terminal_reward = 100.0 if self.game.winner == 'red' else -100.0
+            return obs, reward + terminal_reward, True, False, {}
 
         # Bot plays blue
         bot_move = self.bot.select_move(self.game)
         if bot_move:
+            # Track state before bot move
+            red_captured_before = len(self.game.bsu.captured['red'])
+            blue_captured_before = len(self.game.bsu.captured['blue'])
+
+            bot_from_r, bot_from_c, bot_to_r, bot_to_c = bot_move
             self.game.do_move(*bot_move)
+
+            # Subtract reward from bot's move (negative for us)
+            bot_reward = self._calculate_step_reward(
+                'blue', bot_from_r, bot_to_r,
+                red_captured_before, blue_captured_before
+            )
+            reward -= bot_reward  # Bot's gain is our loss
 
         # Check if game ended after blue's move
         if self.game.done:
             obs = self.game.get_observation('red')
-            reward = 1.0 if self.game.winner == 'red' else -1.0
-            return obs, reward, True, False, {}
+            terminal_reward = 100.0 if self.game.winner == 'red' else -100.0
+            return obs, reward + terminal_reward, True, False, {}
 
         # Game continues
         obs = self.game.get_observation('red')
-        reward = 0.0
         truncated = self.game.turn_count > 1000  # safety limit
 
         return obs, reward, False, truncated, {"action_mask": self._get_action_mask()}
 
+    def _calculate_step_reward(self, color, from_row, to_row, red_cap_before, blue_cap_before):
+        """Calculate reward for a single move"""
+        reward = 0.0
+
+        # Material rewards: check what pieces were captured
+        red_captured_after = len(self.game.bsu.captured['red'])
+        blue_captured_after = len(self.game.bsu.captured['blue'])
+
+        if color == 'red':
+            # Red's perspective
+            # Positive: captured blue pieces
+            if blue_captured_after > blue_cap_before:
+                captured_piece = self.game.bsu.captured['blue'][-1]
+                material_reward = self.piece_values.get(captured_piece.rank, 0)
+                reward += material_reward
+
+                # Strategic bonuses
+                # Check if this was spy killing marshal
+                if captured_piece.rank == 10:  # Marshal captured
+                    # Check if attacker was spy (need to look at what moved)
+                    # Since piece already moved, check if it's rank 1 at destination
+                    to_piece = self.game.bsu.grid[to_row][:]
+                    for piece in to_piece:
+                        if piece and piece.color == 'red' and piece.rank == 1:
+                            reward += 2.0  # Spy killed marshal bonus
+                            break
+
+                # Check if miner defused bomb
+                if captured_piece.type == 'bomb':
+                    reward += 1.0  # Miner defused bomb bonus
+
+            # Negative: lost red pieces
+            if red_captured_after > red_cap_before:
+                lost_piece = self.game.bsu.captured['red'][-1]
+                material_penalty = self.piece_values.get(lost_piece.rank, 0)
+                reward -= material_penalty
+
+            # Territorial reward: moving deeper into enemy territory
+            # Red moves up (decreasing row numbers), enemy territory is rows 0-3
+            if to_row < from_row and to_row < 4:  # Moved up into enemy territory
+                reward += 0.1
+
+        else:  # color == 'blue'
+            # Blue's perspective (same logic, inverted)
+            if red_captured_after > red_cap_before:
+                captured_piece = self.game.bsu.captured['red'][-1]
+                material_reward = self.piece_values.get(captured_piece.rank, 0)
+                reward += material_reward
+
+                # Strategic bonuses for blue
+                if captured_piece.rank == 10:  # Marshal captured
+                    to_piece = self.game.bsu.grid[to_row][:]
+                    for piece in to_piece:
+                        if piece and piece.color == 'blue' and piece.rank == 1:
+                            reward += 2.0
+                            break
+
+                if captured_piece.type == 'bomb':
+                    reward += 1.0
+
+            if blue_captured_after > blue_cap_before:
+                lost_piece = self.game.bsu.captured['blue'][-1]
+                material_penalty = self.piece_values.get(lost_piece.rank, 0)
+                reward -= material_penalty
+
+            # Territorial reward: blue moves down (increasing row), enemy territory is rows 6-9
+            if to_row > from_row and to_row > 5:  # Moved down into enemy territory
+                reward += 0.1
+
+        return reward
+
     def _get_action_mask(self):
         """Return binary mask of legal actions"""
-        mask = np.zeros(400, dtype=np.float32)
+        mask = np.zeros(3600, dtype=np.float32)
         legal_moves = self.game.get_legal_moves()
 
         for from_r, from_c, to_r, to_c in legal_moves:
             dr, dc = to_r - from_r, to_c - from_c
 
-            # Only encode single-step moves for now
-            if abs(dr) <= 1 and abs(dc) <= 1:
-                direction = self._direction_to_index(dr, dc)
-                action_idx = (from_r * 10 + from_c) * 4 + direction
-                mask[action_idx] = 1
+            # Calculate direction and distance
+            if dr != 0 and dc != 0:
+                continue  # Diagonal moves not allowed in Stratego
+
+            if dr != 0:
+                direction = 0 if dr < 0 else 1  # up or down
+                distance = abs(dr)
+            elif dc != 0:
+                direction = 2 if dc < 0 else 3  # left or right
+                distance = abs(dc)
+            else:
+                continue  # No movement
+
+            # Encode action: action = position * 36 + direction * 9 + (distance - 1)
+            position = from_r * 10 + from_c
+            action_idx = position * 36 + direction * 9 + (distance - 1)
+            mask[action_idx] = 1
 
         return mask
 
@@ -870,14 +1005,22 @@ class StrategoEnv(gym.Env):
         if dc == 1: return 3   # right
 
     def _action_to_move(self, action):
-        direction = action % 4
-        cell = action // 4
-        from_r, from_c = cell // 10, cell % 10
+        """Decode action to (from_r, from_c, to_r, to_c)"""
+        # action = position * 36 + direction * 9 + (distance - 1)
+        position = action // 36
+        remainder = action % 36
+        direction = remainder // 9
+        distance = (remainder % 9) + 1
+
+        from_r, from_c = position // 10, position % 10
 
         deltas = [(-1, 0), (1, 0), (0, -1), (0, 1)]
         dr, dc = deltas[direction]
 
-        return (from_r, from_c, from_r + dr, from_c + dc)
+        to_r = from_r + dr * distance
+        to_c = from_c + dc * distance
+
+        return (from_r, from_c, to_r, to_c)
 
     def render(self):
         if self.render_mode == "human":

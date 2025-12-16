@@ -56,3 +56,4 @@ Thumbs.db
 *.log
 *.csv
 results/
+test_env.py

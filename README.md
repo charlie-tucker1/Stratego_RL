@@ -81,18 +81,33 @@ Shape: `(27, 10, 10)` - 27 channels representing different piece types and board
 
 ## Action Space
 
-Discrete(400) - 100 board positions × 4 directions (up, down, left, right)
+Discrete(3600) - 100 board positions × 4 directions × 9 distances
 
-Action encoding: `action = (row * 10 + col) * 4 + direction`
+Action encoding: `action = position * 36 + direction * 9 + (distance - 1)`
+- position: 0-99 (board cell)
+- direction: 0=up, 1=down, 2=left, 3=right
+- distance: 1-9 squares
 
-**Note:** Scout multi-square moves are simplified to single-step moves in current version.
+**Full scout movement implemented:** Scouts can move multiple squares as in real Stratego.
 
 ## Rewards
 
-- +1.0 for winning (capturing enemy flag)
-- -1.0 for losing (your flag captured)
-- 0.0 during gameplay
-- Small penalty (-0.1) for invalid actions
+**Material Rewards:**
+- +/- piece rank value when capturing/losing pieces (spy=1, scout=2, ... marshal=10)
+
+**Strategic Bonuses:**
+- +2.0 for spy killing marshal (special rule)
+- +1.0 for miner defusing bomb
+
+**Territorial Rewards:**
+- +0.1 for moving deeper into enemy territory (past middle rows)
+
+**Terminal Rewards:**
+- +100.0 for winning (capturing enemy flag)
+- -100.0 for losing (your flag captured)
+
+**Penalties:**
+- -0.1 for invalid actions
 
 ## Training
 
@@ -100,17 +115,17 @@ Coming soon - training scripts with PPO/other RL algorithms
 
 ## Known Limitations
 
-- Scout movement simplified to single squares (not full multi-square moves)
-- Sparse rewards (only terminal rewards currently)
 - Placement phase is randomized (not part of action space)
+- Bot opponent has access to full board state (not using masked view)
 
 ## Roadmap
 
-- [ ] Fix scout multi-square movement encoding
-- [ ] Add reward shaping (piece captures, reveals, etc.)
+- [x] Full scout multi-square movement encoding
+- [x] Add reward shaping (material, strategic, territorial)
 - [ ] Add training examples with PPO
 - [ ] Performance benchmarking
 - [ ] Unit tests
+- [ ] Fix bot to use masked view (more realistic opponent)
 - [ ] Prepare for PufferLib PR
 
 ## Contributing
