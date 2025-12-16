@@ -395,34 +395,6 @@ class BoardStateMasked:
                         row_str += "? "  # unknown enemy
             print(row_str)
 
-def to_observation(self):
-    """Convert to numpy arrays for RL agent"""
-    # Channel 0-11: your pieces (one-hot by rank 0-11)
-    # Channel 12-23: known enemy pieces (one-hot by rank)
-    # Channel 24: unknown enemy pieces (binary mask)
-    # Channel 25: empty cells
-    # Channel 26-27: lakes
-
-    obs = np.zeros((28, 10, 10), dtype=np.float32)
-
-    for r in range(10):
-        for c in range(10):
-            cell = self.grid[r][c]
-            if cell is None:
-                obs[25, r, c] = 1  # empty
-            elif cell['color'] == self.viewer:
-                obs[cell['rank'], r, c] = 1  # your piece
-            elif cell['known']:
-                obs[12 + cell['rank'], r, c] = 1  # known enemy
-            else:
-                obs[24, r, c] = 1  # unknown enemy
-
-    # Mark lakes
-    for r, c in LAKES:
-        obs[26, r, c] = 1
-
-    return obs
-
 class Game:
     """
     Main game orchestrator. Holds ground truth (bsu) and provides
@@ -564,7 +536,11 @@ class Game:
         Action space for movement: 10 * 10 * 4 = 400 actions
         (from_cell) * (direction: up/down/left/right)
 
-        For scouts, handle multi-square moves differently.
+        LIMITATION: Scouts can move multiple squares in Stratego, but this
+        implementation only encodes single-step moves (dr/dc = -1, 0, 1).
+        Scout multi-square moves are filtered out to keep action space simple.
+        This means scouts effectively move like regular pieces in this version.
+
         Simplified version: action = from_cell * 4 + direction
         """
         mask = np.zeros(400, dtype=np.float32)
@@ -689,24 +665,6 @@ class Game:
                     row_str += sym + " "
             print(row_str)
 
-game = Game(random_placement=True)
-
-# Get observations for each player
-red_obs = game.get_observation('red')
-blue_obs = game.get_observation('blue')
-
-print(f"Observation shape: {red_obs.shape}")  # Should be (27, 10, 10)
-
-# Visualize what each player sees
-game.red_view.render_known()
-game.blue_view.render_known()
-
-# Check the tensor makes sense
-print(f"\nRed's flag location (channel 0):")
-print(np.argwhere(red_obs[0] == 1))  # Should show 1 position
-
-print(f"\nUnknown enemies red sees (channel 24):")
-print(np.sum(red_obs[24]))  # Should be ~40 (all blue pieces hidden)
 
 class ScriptedAgent:
     """
@@ -816,6 +774,11 @@ class ScriptedAgent:
 class StrategoEnv(gym.Env):
     """
     Single-agent env: you play red, scripted bot plays blue.
+
+    KNOWN LIMITATIONS:
+    - Scout multi-square moves are not encoded; scouts move 1 square like other pieces
+    - Placement phase is auto-randomized (not part of action space)
+    - Rewards are sparse (only +1/-1 at game end)
     """
 
     metadata = {"render_modes": ["human", "ansi"]}
@@ -920,34 +883,37 @@ class StrategoEnv(gym.Env):
         if self.render_mode == "human":
             self.game.render()
 
-env = StrategoEnv(render_mode="human")
-obs, info = env.reset()
 
-print(f"Observation shape: {obs.shape}")
-print(f"Legal actions: {np.sum(info['action_mask'])}")
+if __name__ == '__main__':
+    # Test the environment
+    env = StrategoEnv(render_mode="human")
+    obs, info = env.reset()
 
-# Random agent vs scripted bot
-for _ in range(100):
-    mask = info.get("action_mask", np.ones(400))
-    legal_actions = np.where(mask == 1)[0]
+    print(f"Observation shape: {obs.shape}")
+    print(f"Legal actions: {np.sum(info['action_mask'])}")
 
-    if len(legal_actions) == 0:
-        break
+    # Random agent vs scripted bot
+    for _ in range(100):
+        mask = info.get("action_mask", np.ones(400))
+        legal_actions = np.where(mask == 1)[0]
 
-    action = np.random.choice(legal_actions)
-    obs, reward, done, truncated, info = env.step(action)
+        if len(legal_actions) == 0:
+            break
 
-    if done or truncated:
-        print(f"Game over! Reward: {reward}")
-        break
+        action = np.random.choice(legal_actions)
+        obs, reward, done, truncated, info = env.step(action)
 
-env.render()
+        if done or truncated:
+            print(f"Game over! Reward: {reward}")
+            break
 
-env = StrategoEnv()
-obs, info = env.reset()
+    env.render()
 
-print(f"Initial legal actions: {np.sum(info['action_mask'])}")
-# Should be ~30-50, not 5
+    env = StrategoEnv()
+    obs, info = env.reset()
 
-# Also verify the game's legal moves directly
-print(f"Game legal moves: {len(env.game.get_legal_moves())}")
+    print(f"Initial legal actions: {np.sum(info['action_mask'])}")
+    # Should be ~30-50, not 5
+
+    # Also verify the game's legal moves directly
+    print(f"Game legal moves: {len(env.game.get_legal_moves())}")
