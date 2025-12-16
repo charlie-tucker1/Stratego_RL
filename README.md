@@ -13,7 +13,7 @@ Stratego is a classic two-player strategy board game involving hidden informatio
 
 ## Status
 
-🚧 **Work in Progress** - Currently in development for eventual PufferLib contribution
+**Work in Progress** - Currently in development for eventual PufferLib contribution
 
 ## Game Rules
 
