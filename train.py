@@ -28,7 +28,7 @@ from stratego_logic import StrategoEnv
 
 
 # Training Configuration
-TOTAL_TIMESTEPS = 1_000_000  # Total training steps
+TOTAL_TIMESTEPS = 2_000_000  # Total training steps
 SAVE_FREQ = 50_000           # Save model every N steps
 LOG_DIR = "./logs"           # TensorBoard logs
 MODEL_DIR = "./models"       # Saved model checkpoints
@@ -56,7 +56,7 @@ class StrategoCNN(BaseFeaturesExtractor):
     - Flatten
     - FC: -> 512 features
 
-    This preserves spatial structure while extracting meaningful features.
+    This should preserve spatial structure while extracting meaningful features.
     """
 
     def __init__(self, observation_space: gym.Space, features_dim: int = 512):
@@ -250,7 +250,7 @@ def train():
     )
 
     # Train the agent
-    print("Starting training...")
+    print("Starting training")
     print("Monitor progress with: tensorboard --logdir ./logs\n")
 
     try:
@@ -279,7 +279,7 @@ def evaluate_model(model_path, n_episodes=100):
         n_episodes: Number of episodes to evaluate
     """
     print(f"Evaluating model: {model_path}")
-    print(f"Running {n_episodes} episodes...\n")
+    print(f"Running {n_episodes} episodes\n")
 
     # Load model
     model = MaskablePPO.load(model_path)
@@ -325,7 +325,6 @@ def evaluate_model(model_path, n_episodes=100):
     print(f"Avg Reward: {total_reward/n_episodes:.2f}")
     print(f"Avg Episode Length: {total_length/n_episodes:.1f} steps")
     print(f"{'='*50}\n")
-
 
 if __name__ == "__main__":
     import argparse
