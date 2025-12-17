@@ -184,7 +184,8 @@ def mask_fn(env):
     Extract action mask from environment.
     Required for MaskablePPO to handle invalid actions.
     """
-    return env.action_mask
+    # Unwrap to get the base StrategoEnv (Monitor wrapper doesn't expose action_mask)
+    return env.unwrapped.action_mask
 
 
 def make_env():
