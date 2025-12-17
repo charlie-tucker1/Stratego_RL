@@ -5,6 +5,7 @@ numpy>=1.24.0,<2.0.0
 # RL training libraries
 torch>=2.0.0
 stable-baselines3>=2.0.0
+sb3-contrib>=2.0.0
 
 # Optional: for PufferLib integration (when ready)
 # pufferlib>=3.0.0

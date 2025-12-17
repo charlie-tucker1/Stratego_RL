@@ -808,6 +808,7 @@ class StrategoEnv(gym.Env):
 
         self.game = None
         self.bot = None
+        self.action_mask = None  # Store current action mask for sb3-contrib
 
         # Piece values for reward shaping
         self.piece_values = {
@@ -831,7 +832,8 @@ class StrategoEnv(gym.Env):
         self.bot = ScriptedAgent('blue')
 
         obs = self.game.get_observation('red')
-        info = {"action_mask": self._get_action_mask()}
+        self.action_mask = self._get_action_mask()
+        info = {"action_mask": self.action_mask}
 
         return obs, info
 
@@ -844,7 +846,8 @@ class StrategoEnv(gym.Env):
         if move not in legal_moves:
             # Invalid action - penalize and skip
             obs = self.game.get_observation('red')
-            return obs, -0.1, False, False, {"action_mask": self._get_action_mask()}
+            self.action_mask = self._get_action_mask()
+            return obs, -0.1, False, False, {"action_mask": self.action_mask}
 
         # Track state before move for reward calculation
         from_r, from_c, to_r, to_c = move
@@ -895,8 +898,9 @@ class StrategoEnv(gym.Env):
         # Game continues
         obs = self.game.get_observation('red')
         truncated = self.game.turn_count > 1000  # safety limit
+        self.action_mask = self._get_action_mask()
 
-        return obs, reward, False, truncated, {"action_mask": self._get_action_mask()}
+        return obs, reward, False, truncated, {"action_mask": self.action_mask}
 
     def _calculate_step_reward(self, color, from_row, to_row, red_cap_before, blue_cap_before):
         """Calculate reward for a single move"""

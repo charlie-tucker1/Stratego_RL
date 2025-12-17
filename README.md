@@ -111,7 +111,17 @@ Full scout movement implemented: Scouts can move multiple squares as in real Str
 
 ## Training
 
-Coming soon - training scripts with PPO/other RL algorithms
+Train a PPO agent to beat the scripted bot:
+
+```bash
+# Start training
+python train.py
+
+# Monitor with TensorBoard
+tensorboard --logdir ./logs
+```
+
+See [TRAINING.md](TRAINING.md) for detailed instructions, configuration options, and expected results.
 
 ## Known Limitations
 
