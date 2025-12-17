@@ -201,8 +201,7 @@ class BoardStateUnmasked:
 
 
     # COMBAT
-    #------------------------------------------------------------------
-
+    
     def remove_piece(self, row, col):
         """Remove piece from board and add to captured list"""
         piece = self.grid[row][col]
