@@ -88,7 +88,7 @@ Action encoding: `action = position * 36 + direction * 9 + (distance - 1)`
 - direction: 0=up, 1=down, 2=left, 3=right
 - distance: 1-9 squares
 
-**Full scout movement implemented:** Scouts can move multiple squares as in real Stratego.
+Full scout movement implemented: Scouts can move multiple squares as in real Stratego.
 
 ## Rewards
 
