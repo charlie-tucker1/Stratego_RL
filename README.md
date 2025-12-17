@@ -6,7 +6,7 @@ A reinforcement learning environment for the board game Stratego, built with Gym
 
 Stratego is a classic two-player strategy board game involving hidden information, combat, and tactical positioning. This implementation provides:
 - Full Stratego game logic with standard rules
-- Partial observability (fog of war)
+- Partial observability 
 - Gymnasium-compatible RL environment
 - Scripted bot opponent for training
 - 27-channel spatial observation encoding
@@ -73,7 +73,7 @@ Shape: `(27, 10, 10)` - 27 channels representing different piece types and board
 - 12: Known enemy flag
 - 13: Known enemy bombs
 - 14-23: Known enemy soldiers (ranks 1-10)
-- 24: Unknown enemy pieces (fog of war)
+- 24: Unknown enemy pieces 
 
 **Environment (channels 25-26):**
 - 25: Empty cells
