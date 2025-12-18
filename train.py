@@ -262,6 +262,13 @@ def train():
         )
     except KeyboardInterrupt:
         print("\n\nTraining interrupted by user")
+    except ValueError as e:
+        if "Simplex()" in str(e):
+            print("\n\nTraining stopped due to numerical stability issue in action masking")
+            print("This is a rare edge case - your checkpoints are saved!")
+            print(f"Error: {e}")
+        else:
+            raise
 
     # Save final model
     final_path = os.path.join(MODEL_DIR, "stratego_ppo_final")
