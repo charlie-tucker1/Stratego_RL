@@ -111,6 +111,8 @@ Full scout movement implemented: Scouts can move multiple squares as in real Str
 
 ## Training
 
+### Local Training
+
 Train a PPO agent to beat the scripted bot:
 
 ```bash
@@ -120,6 +122,17 @@ python train.py
 # Monitor with TensorBoard
 tensorboard --logdir ./logs
 ```
+
+### Google Colab Training (GPU)
+
+For faster training with free GPU access:
+
+1. Upload `train_colab.ipynb` to Google Colab
+2. Runtime → Change runtime type → GPU (T4 or A100)
+3. Run cells in order
+4. Models automatically saved to Google Drive
+
+Expected training time on T4 GPU: 6-8 hours for 2M timesteps
 
 See [TRAINING.md](TRAINING.md) for detailed instructions, configuration options, and expected results.
 

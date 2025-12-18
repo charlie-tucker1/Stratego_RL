@@ -29,6 +29,7 @@ ENV/
 # Jupyter Notebook
 .ipynb_checkpoints
 *.ipynb
+!train_colab.ipynb
 
 # PyCharm
 .idea/
