@@ -123,18 +123,31 @@ python train.py
 tensorboard --logdir ./logs
 ```
 
-### Google Colab Training (GPU)
+### Cloud Training (GPU)
 
-For faster training with free GPU access:
+**Kaggle (Recommended)**
+
+For fastest, most reliable free GPU training:
+
+1. Upload `train_kaggle.ipynb` to Kaggle
+2. Settings → Accelerator → GPU T4 x2
+3. Run cells in order
+4. Download models when complete
+
+See [KAGGLE_SETUP.md](KAGGLE_SETUP.md) for detailed instructions.
+
+**Google Colab**
+
+Alternative GPU option:
 
 1. Upload `train_colab.ipynb` to Google Colab
 2. Runtime → Change runtime type → GPU (T4 or A100)
-3. Run cells in order
+3. Run cells in order (requires runtime restart after dependencies install)
 4. Models automatically saved to Google Drive
 
 Expected training time on T4 GPU: 6-8 hours for 2M timesteps
 
-See [TRAINING.md](TRAINING.md) for detailed instructions, configuration options, and expected results.
+See [TRAINING.md](TRAINING.md) for detailed local training instructions and configuration options.
 
 ## Known Limitations
 

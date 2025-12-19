@@ -30,6 +30,7 @@ ENV/
 .ipynb_checkpoints
 *.ipynb
 !train_colab.ipynb
+!train_kaggle.ipynb
 
 # PyCharm
 .idea/
