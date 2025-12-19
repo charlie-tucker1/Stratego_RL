@@ -88,13 +88,6 @@ FileLink('stratego_models.zip')
 
 Click the link to download your trained models.
 
-## Key Advantages of Kaggle:
-
-- **Better package management**: numpy compatibility works automatically
-- **Free GPU**: T4 x2 GPUs available for 30 hours/week
-- **Persistent storage**: Outputs saved automatically
-- **No runtime disconnects**: More stable than Colab
-- **Longer sessions**: Up to 12 hours per session
 
 ## Tips:
 
