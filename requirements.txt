@@ -8,10 +8,8 @@ stable-baselines3>=2.0.0
 sb3-contrib>=2.0.0
 tensorboard>=2.10.0
 
-# Optional: for PufferLib integration (when ready)
-# pufferlib>=3.0.0
 
-# Development/testing (optional)
+# Development/testing
 pytest>=7.0.0
 black>=23.0.0
 flake8>=6.0.0
